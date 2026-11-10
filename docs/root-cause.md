@@ -123,7 +123,7 @@ Settings::ResetToDefaults()      // 内部最后调用 Save()
 | UIScale | `1` |
 | VSync | `true` |
 
-## 4. 为什么之前的排查都没用
+## 4. 常见修复方式无效的原因
 
 - **Epic 验证文件完整性**：只校验安装目录清单内文件，设置文件在 LocalLow，不在校验范围。
 - **关闭云存档**：Flotsam 的 Epic 云同步覆盖的是 `Saves\` 下的 `.fs` 存档（日志可见其同步目录），不涉及设置文件。
@@ -131,7 +131,7 @@ Settings::ResetToDefaults()      // 内部最后调用 Save()
 - **Epic 日志里的 `isCorrupt: true`**：只是启动器对安装目录状态的标记，和 LocalLow 里的设置文件无关；
   而且该标记并不影响游戏读取设置。
 
-## 5. 两种修复为什么有效
+## 5. 两种修复方案有效的原理
 
 ### 符号链接
 在 `<GAME_DIR>\PlayerSettings.json` 建立指向 LocalLow 真实文件的符号链接：
@@ -145,7 +145,7 @@ Settings::ResetToDefaults()      // 内部最后调用 Save()
 
 两种方式都只影响「读取设置文件时使用的路径」，不改动存档、成就、在线功能。
 
-## 6. 如何自行复核（可选）
+## 6. 自行复核方法（可选）
 
 游戏是 Mono 程序集，可以用 Mono.Cecil 直接读 IL：
 

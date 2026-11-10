@@ -9,7 +9,7 @@
 
 ---
 
-## ✅ Recommended fix: symbolic link (TL;DR)
+## ✅ Recommended solution: symbolic link (TL;DR)
 
 **No game files are modified.** Put a symlink named `PlayerSettings.json` in the game folder that points to
 the real settings file.
@@ -30,7 +30,7 @@ mklink "<GAME_DIR>\PlayerSettings.json" "%USERPROFILE%\AppData\LocalLow\Pajama L
 
 ---
 
-## Alternative fix: assembly patch (no administrator rights needed)
+## Alternative solution: assembly patch (no administrator rights needed)
 
 Use this if you cannot elevate. It replaces one string literal so the game reads the settings via an absolute path.
 
@@ -42,7 +42,7 @@ Use this if you cannot elevate. It replaces one string literal so the game reads
 
 ---
 
-## After applying the fix
+## Post-fix notes
 
 1. **Configure your settings once** — the current file only contains defaults; changes will persist from now on.
 2. **Do not use Epic's "Verify / Repair"** — it reverts the assembly patch (the symlink is usually unaffected).
@@ -53,7 +53,7 @@ Use this if you cannot elevate. It replaces one string literal so the game reads
 
 ---
 
-## Verify it works
+## Verification
 
 1. Change a setting in-game, close the settings window (saving is triggered on close);
 2. Quit the game completely and start it again;
