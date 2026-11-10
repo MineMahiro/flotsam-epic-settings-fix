@@ -1,4 +1,4 @@
-﻿# Flotsam (Epic Games Store) — game settings reset on every launch: fix
+# Flotsam (Epic Games Store) — game settings reset on every launch: fix
 
 > Applies to the **Epic Games Store** build of *Flotsam*.
 >

@@ -1,4 +1,4 @@
-﻿# Flotsam（浮游世界）Epic 版「设置每次启动被重置」修复
+# Flotsam（浮游世界）Epic 版「设置每次启动被重置」修复
 
 > 适用于 **Epic Games Store 版** Flotsam / 浮游世界。
 >
