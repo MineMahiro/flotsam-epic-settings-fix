@@ -3,10 +3,7 @@
 **Problem**: settings in the Epic build of Flotsam are not saved after quitting — volume, language, UI scale,
 VSync, sensitivity, autosave limit, etc. all revert to defaults after restarting the game.
 `PlayerSettings.json` in `%USERPROFILE%\AppData\LocalLow\Pajama Llama Games\Flotsam\` is rewritten with defaults
-on every launch. **Save games are not affected.**
-
-**Nature**: a path bug in the Epic build itself — unrelated to Epic cloud saves, account permissions or a
-corrupt install.
+on every launch.
 
 **Quick navigation**: Recommended solution · Alternative solution · Post-fix notes · Verification · Root cause · FAQ
 
@@ -14,8 +11,10 @@ corrupt install.
 
 ## ✅ Recommended solution: symbolic link (TL;DR)
 
-**Approach**: no game files are modified. A symlink named `PlayerSettings.json` is created in the game folder,
-pointing to the real settings file, so that reads and writes resolve to the same file.
+**Characteristics**: no game files are modified. A symlink named `PlayerSettings.json` is created in the game
+folder, pointing to the real settings file, so that reads and writes resolve to the same file.
+
+**✅ One-click fix**:
 
 | Step | Action |
 |---|---|
@@ -23,15 +22,18 @@ pointing to the real settings file, so that reads and writes resolve to the same
 | 2 | Run `tools\Fix-Settings-Symlink.bat` |
 | 3 | Click "Yes" on the UAC prompt (the script requests administrator rights once) |
 
-The script handles everything: locates the game folder → backs up the settings file → creates the symlink → verifies it.
+> The script handles everything: locates the game folder → backs up the settings file → creates the symlink → verifies it.
 
-**Manual command** (admin CMD):
+**Manual command method** (no need to download the repository):
+
+| Step | Action |
+|---|---|
+| 1 | Open CMD as administrator |
+| 2 | Replace `<GAME_DIR>` with your actual game folder, then run the command below |
 
 ```bat
 mklink "<GAME_DIR>\PlayerSettings.json" "%USERPROFILE%\AppData\LocalLow\Pajama Llama Games\Flotsam\PlayerSettings.json"
 ```
-
-**Requirements**: administrator rights, or Windows Developer Mode enabled.
 
 **Rollback**: run `tools\Undo-Settings-Symlink.bat`, or delete `<GAME_DIR>\PlayerSettings.json`
 (it is a link, not a game file).
@@ -40,8 +42,8 @@ mklink "<GAME_DIR>\PlayerSettings.json" "%USERPROFILE%\AppData\LocalLow\Pajama L
 
 ## Alternative solution: assembly patch (no administrator rights needed)
 
-**Approach**: replace the relative path used when reading settings with an absolute path — a single instruction
-change, for environments where elevation is not possible.
+**Characteristics**: replace the relative path used when reading settings with an absolute path — a single
+instruction change, for environments where elevation is not possible.
 
 | Step | Action |
 |---|---|
@@ -49,24 +51,21 @@ change, for environments where elevation is not possible.
 | 2 | Run `tools\Patch-Assembly.bat` |
 | 3 | Confirm the prompt (the script shows the detected game version and file hash) |
 
-The script handles everything: locates the game folder → checks that the game is not running → backs up the
-original DLL → patches by IL pattern → verifies the result by reading it back.
+> The script handles everything: locates the game folder → checks that the game is not running → backs up the
+> original DLL → patches by IL pattern → verifies the result by reading it back.
 
 **Rollback**: run `tools\Restore-Assembly.bat` (restores the newest backup).
-
-> **Note**: a game update or Epic's "Verify files" restores the original DLL; run the script again afterwards.
 
 ---
 
 ## Post-fix notes
 
-1. **Initial configuration**: the file currently contains only defaults; configure your settings once after
-   applying the fix — changes will persist from then on.
-2. **Epic "Verify / Repair"**: it reverts the assembly patch (the symlink is usually unaffected). If settings
-   start resetting again, re-run the corresponding script.
-3. **Game update / reinstall / moving the install folder**: the symlink may be gone → re-run
-   `Fix-Settings-Symlink.bat`; the DLL patch is overwritten → re-run `Patch-Assembly.bat`.
-4. **Scope**: neither method touches save games (`Saves\*.fs`), achievements or online features.
+1. **Do not use Epic's integrity verification**  
+   "Verify / Repair" reverts the assembly patch (the symlink is usually unaffected). If settings start resetting
+   again, run the corresponding one-click script.
+
+2. **Re-apply after a game update / reinstall / moving the install folder**  
+   The symlink may be gone → re-run `Fix-Settings-Symlink.bat`; the DLL patch is overwritten → re-run `Patch-Assembly.bat`.
 
 ---
 
@@ -74,7 +73,7 @@ original DLL → patches by IL pattern → verifies the result by reading it bac
 
 | Step | Action |
 |---|---|
-| 1 | Open the in-game settings and change any option (e.g. master volume) |
+| 1 | Open the in-game settings and change any option |
 | 2 | Close the settings window (this triggers saving) |
 | 3 | Quit the game completely, then start it again |
 | 4 | Check whether the setting persisted |
@@ -84,9 +83,6 @@ original DLL → patches by IL pattern → verifies the result by reading it bac
 ```bat
 type "%USERPROFILE%\AppData\LocalLow\Pajama Llama Games\Flotsam\PlayerSettings.json"
 ```
-
-**Expected result**: before the fix, the file reverts to defaults (`"MasterVolume":0.8`, `"UIScale":1`,
-`"VSync":true`, ...) after every launch; after the fix, it keeps your values.
 
 ---
 
@@ -124,22 +120,22 @@ use the symbolic link solution instead.
 
 ## FAQ
 
-**Are save games affected?**
-No. Saves use absolute paths and are not affected by this bug; neither method touches `Saves\`.
+Q1: **Are save games affected?**  
+A1: No. Saves use absolute paths and are not affected by this bug; neither method touches `Saves\`.
 
-**Why don't "Verify files", disabling cloud saves or running as administrator help?**
-The settings file lives in `%USERPROFILE%\AppData\LocalLow`, outside the install folder and outside Epic's
+Q2: **Why don't "Verify files", disabling cloud saves or running as administrator help?**  
+A2: The settings file lives in `%USERPROFILE%\AppData\LocalLow`, outside the install folder and outside Epic's
 cloud-save scope (Flotsam's Epic cloud save only covers `Saves\`). None of those actions change the read path.
 
-**Will Epic mark the install as corrupt?**
-Files are not hash-checked at launch; only "Verify files" would revert the patch.
+Q3: **Will Epic mark the install as corrupt?**  
+A3: Files are not hash-checked at launch; only "Verify files" would revert the patch.
 
-**Can the settings file simply be copied into the game folder?**
-No. The game only reads from the working directory and only writes to LocalLow; a plain copy is stale on the
+Q4: **Can the settings file simply be copied into the game folder?**  
+A4: No. The game only reads from the working directory and only writes to LocalLow; a plain copy is stale on the
 next launch. Both paths must point to the same file.
 
-**Should cloud saves be disabled?**
-Not necessary; they are unrelated.
+Q5: **Should cloud saves be disabled?**  
+A5: Not necessary; they are unrelated.
 
 ---
 
