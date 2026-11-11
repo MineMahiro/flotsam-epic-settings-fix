@@ -40,10 +40,11 @@ mklink "<GAME_DIR>\PlayerSettings.json" "%USERPROFILE%\AppData\LocalLow\Pajama L
 
 ---
 
-## Alternative solution: assembly patch (no administrator rights needed)
+## Alternative solution: assembly patch (usually no administrator rights needed)
 
 **Characteristics**: replace the relative path used when reading settings with an absolute path — a single
-instruction change, for environments where elevation is not possible.
+instruction change, for environments where elevation is not possible.  
+If the game is installed in a read-only folder such as `Program Files`, the script requests administrator rights automatically.
 
 | Step | Action |
 |---|---|
@@ -66,6 +67,10 @@ instruction change, for environments where elevation is not possible.
 
 2. **Re-apply after a game update / reinstall / moving the install folder**  
    The symlink may be gone → re-run `Fix-Settings-Symlink.bat`; the DLL patch is overwritten → re-run `Patch-Assembly.bat`.
+
+3. **Re-run per Windows account / per computer**  
+   The settings path belongs to the current Windows user; the scripts compute it when they run. Each account on
+   a shared PC has to run the fix once.
 
 ---
 
@@ -116,6 +121,22 @@ The patcher locates the target by IL pattern rather than a fixed file hash, so n
 unknown versions produce a warning. If a game update changes the code and the script reports "target not found",
 use the symbolic link solution instead.
 
+**Path detection**:
+
+| Target | Lookup order |
+|---|---|
+| Game folder | Epic Games Launcher manifest (`InstallLocation`) → scan of common layouts on local drives → `-InstallLocation` parameter / `FLOTSAM_FIX_GAME_DIR` environment variable |
+| Settings file | Current user's LocalLow (Windows known-folder API, tolerates redirected profiles) |
+
+The patch stores the absolute path of the machine and Windows user that ran it, so patching on any computer
+produces the correct path for that computer.
+
+If automatic detection fails, pass the install folder explicitly:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\Patch-Assembly.ps1 -InstallLocation "D:\Games\Flotsam"
+```
+
 ---
 
 ## FAQ
@@ -136,6 +157,15 @@ next launch. Both paths must point to the same file.
 
 Q5: **Should cloud saves be disabled?**  
 A5: Not necessary; they are unrelated.
+
+Q6: **Does it work on another computer, or with the game installed on a different drive?**  
+A6: Yes. The game folder is read from the Epic launcher manifest, independent of drive letter or folder name;
+the settings path is computed for the current user; the patch stores the path of the machine it runs on.
+If detection fails, pass `-InstallLocation`.
+
+Q7: **What if the game is installed in Program Files and the script gets "access denied"?**  
+A7: The script detects a read-only install folder and requests administrator rights automatically; you can also
+right-click the `.bat` and choose "Run as administrator".
 
 ---
 

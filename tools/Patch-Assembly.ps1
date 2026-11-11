@@ -1,8 +1,10 @@
-﻿# Flotsam settings fix - assembly patch (no administrator rights needed)
+﻿# Flotsam settings fix - assembly patch
 #
 # Patches ONE string literal inside Settings::Load() in Assembly-CSharp.dll:
-#   ldstr "PlayerSettings.json"  ->  ldstr "<absolute path of PlayerSettings.json>"
-# A backup of the original DLL is created next to it before patching.
+#   ldstr "PlayerSettings.json"  ->  ldstr "<absolute path of PlayerSettings.json on THIS machine>"
+# The path is computed when the script runs, so it is correct for the current
+# Windows user and install location. A backup of the original DLL is created
+# next to it before patching.
 
 param(
     [string]$InstallLocation,
@@ -26,14 +28,33 @@ try {
     if (-not (Test-Path -LiteralPath $dll)) {
         throw ("找不到游戏程序集：`n" + $dll)
     }
+    $managedDir   = Split-Path -Parent $dll
     $settingsPath = Get-FlotsamSettingsPath
     $cecilPath    = Join-Path $PSScriptRoot 'lib\Mono.Cecil.dll'
     if (-not (Test-Path -LiteralPath $cecilPath)) {
         throw ('缺少依赖库：' + $cecilPath)
     }
 
-    Write-Info ('游戏目录: ' + $game)
-    Write-Info ('程序集  : ' + $dll)
+    Write-Info ('游戏目录  : ' + $game)
+    Write-Info ('程序集    : ' + $dll)
+    Write-Info ('设置文件  : ' + $settingsPath)
+
+    # Writing next to the DLL fails for non-admins when the game lives under
+    # "C:\Program Files" (common for Epic default installs). Elevate instead of
+    # failing with a raw "access denied".
+    if (-not (Test-DirectoryWritable -Path $managedDir)) {
+        if (-not (Test-IsAdmin)) {
+            Write-Warn ('游戏目录不可写（常见于安装到 Program Files），需要管理员权限继续：' + $managedDir)
+            $extra = @('-InstallLocation', $game)
+            if ($Force) { $extra += '-Force' }
+            if (Invoke-SelfElevate -ScriptPath $PSCommandPath -ExtraArgs $extra) { exit 0 }
+            throw '已取消。也可以改用符号链接方案（Fix-Settings-Symlink.bat）。'
+        }
+        throw ('游戏目录不可写：' + $managedDir)
+    }
+    if (-not (Test-Path -LiteralPath $settingsPath)) {
+        Write-Warn '设置文件还不存在（游戏尚未运行过）。补丁仍会安装，游戏首次运行后会生成该文件。'
+    }
 
     # NOTE: .NET Framework may refuse Assembly.LoadFrom on paths it does not consider
     # the "MyComputer" zone (HRESULT 0x80131515). Loading from a byte array avoids that.
@@ -41,7 +62,7 @@ try {
     [void][System.Reflection.Assembly]::Load($cecilBytes)
 
     $beforeHash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
-    Write-Info ('SHA256  : ' + $beforeHash)
+    Write-Info ('SHA256    : ' + $beforeHash)
     if ($knownHashes.ContainsKey($beforeHash)) {
         Write-Ok ('已知测试版本：' + $knownHashes[$beforeHash])
     } else {
@@ -53,7 +74,7 @@ try {
     }
 
     $resolver = New-Object Mono.Cecil.DefaultAssemblyResolver
-    $resolver.AddSearchDirectory((Split-Path -Parent $dll))
+    $resolver.AddSearchDirectory($managedDir)
     if ($env:FLOTSAM_FIX_RESOLVER_DIR -and (Test-Path -LiteralPath $env:FLOTSAM_FIX_RESOLVER_DIR)) {
         $resolver.AddSearchDirectory($env:FLOTSAM_FIX_RESOLVER_DIR)
     }
@@ -140,6 +161,4 @@ try {
 }
 
 Read-Pause
-
-
 

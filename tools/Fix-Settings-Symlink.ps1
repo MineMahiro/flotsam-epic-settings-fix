@@ -1,8 +1,8 @@
 ﻿# Flotsam settings fix - symbolic link method (requires administrator)
 #
-# Creates <GAME_DIR>\PlayerSettings.json as a symbolic link to
-# %USERPROFILE%\AppData\LocalLow\Pajama Llama Games\Flotsam\PlayerSettings.json
-# so the game's relative-path read and absolute-path write hit the same file.
+# Creates <GAME_DIR>\PlayerSettings.json as a symbolic link to the current
+# Windows user's LocalLow settings file, so the game's relative-path read and
+# absolute-path write resolve to the same file.
 
 param(
     [string]$InstallLocation
@@ -13,7 +13,9 @@ param(
 Write-Header 'Flotsam 设置修复 - 符号链接方式'
 
 if (-not (Test-IsAdmin)) {
-    if (Invoke-SelfElevate -ScriptPath $PSCommandPath) { exit 0 }
+    $extra = @()
+    if ($InstallLocation) { $extra += @('-InstallLocation', $InstallLocation) }
+    if (Invoke-SelfElevate -ScriptPath $PSCommandPath -ExtraArgs $extra) { exit 0 }
     Read-Pause
     exit 1
 }
@@ -40,8 +42,10 @@ try {
     Copy-Item -LiteralPath $settings -Destination $backup -Force
     Write-Ok ("已备份设置文件 -> " + $backup)
 
-    if (Test-Path -LiteralPath $link) {
-        $existing = Get-Item -LiteralPath $link -Force
+    # Get-Item -Force also returns a DANGLING symlink (Test-Path would return false),
+    # so an old link whose target disappeared cannot block re-creation.
+    $existing = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    if ($existing) {
         if ($existing.LinkType) {
             Remove-Item -LiteralPath $link -Force
             Write-Info '已删除旧的符号链接。'
@@ -77,5 +81,4 @@ try {
 }
 
 Read-Pause
-
 

@@ -14,13 +14,21 @@ try {
     $game = Resolve-FlotsamInstallLocation -InstallLocation $InstallLocation
     $dll  = Get-FlotsamAssemblyPath -InstallLocation $game
     if (-not (Test-Path -LiteralPath $dll)) { throw ('找不到游戏程序集：' + $dll) }
+    $managedDir = Split-Path -Parent $dll
 
-    $dir = Split-Path -Parent $dll
-    $backups = @(Get-ChildItem -LiteralPath $dir -Filter 'Assembly-CSharp.dll.original.bak-*' -File -ErrorAction SilentlyContinue |
+    if (-not (Test-DirectoryWritable -Path $managedDir)) {
+        if (-not (Test-IsAdmin)) {
+            Write-Warn ('游戏目录不可写，需要管理员权限继续：' + $managedDir)
+            if (Invoke-SelfElevate -ScriptPath $PSCommandPath -ExtraArgs @('-InstallLocation', $game)) { exit 0 }
+            throw '已取消。'
+        }
+        throw ('游戏目录不可写：' + $managedDir)
+    }
+
+    $backups = @(Get-ChildItem -LiteralPath $managedDir -Filter 'Assembly-CSharp.dll.original.bak-*' -File -ErrorAction SilentlyContinue |
                  Sort-Object LastWriteTime -Descending)
-
     if ($backups.Count -eq 0) {
-        throw ('没有找到备份文件（' + $dir + '\Assembly-CSharp.dll.original.bak-*）。')
+        throw ('没有找到备份文件（' + $managedDir + '\Assembly-CSharp.dll.original.bak-*）。')
     }
 
     $latest = $backups[0]
@@ -35,5 +43,4 @@ try {
 }
 
 Read-Pause
-
 
